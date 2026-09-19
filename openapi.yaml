@@ -1,6 +1,6 @@
 openapi: 3.0.2
 info:
-  title: Swagger Petstore - OpenAPI 3.0 (WriteChoice Test 1)
+  title: Swagger Petstore - OpenAPI 3.0 (Testing one in the video recording WriteChoice)
   description: |-
     This is a sample Pet Store Server based on the OpenAPI 3.0 specification.
     You can find out more about Swagger at [https://swagger.io](https://swagger.io).
@@ -81,7 +81,7 @@ paths:
     post:
       tags:
         - pet
-      summary: Add a new pet to the store (Testing one in the video recording WriteChoice)
+      summary: Add a new pet to the store
       description: Add a new pet to the store
       operationId: addPet
       requestBody:
