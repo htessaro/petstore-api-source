@@ -81,8 +81,8 @@ paths:
     post:
       tags:
         - pet
-      summary: Add a new pet to the store
-      description: Add a new pet to the store  TESTETESTETESTETESTETESTETESTE WC
+      summary: Add a new pet to the store (Testing one in the video recording WriteChoice)
+      description: Add a new pet to the store
       operationId: addPet
       requestBody:
         description: Create a new pet in the store
